@@ -1,7 +1,7 @@
 {
   "name": "new-capstone",
   "version": "1.0.0",
-  "description": "",
+  "description": "This project will hold the scripts needed for Render to build and run both the server and client apps",
   "main": "index.js",
   "engines": {
     "node": "16.14.0"
@@ -12,5 +12,14 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ctdalton/capstoneStarter.git"
+  },
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ctdalton/capstoneStarter/issues"
+  },
+  "homepage": "https://github.com/ctdalton/capstoneStarter#readme"
 }

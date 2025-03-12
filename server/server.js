@@ -1,11 +1,12 @@
-const express = require("express");
+// server/server.js
 const path = require("path");
+const express = require("express");
 
 const PORT = process.env.PORT || 3001;
 
 const app = express();
 
-// Have Node serve the files for our built React app (prod)
+// Have Node serve the files for our built React app
 app.use(express.static(path.resolve(__dirname, "../client/dist")));
 
 // Handle GET requests to /api route
