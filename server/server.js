@@ -1,18 +1,20 @@
 // server/server.js
 const path = require("path");
 const express = require("express");
-const mongoose = require("mongoose");
 
-const databaseUrl = process.env.DATABASE_URL;
+//Mongoose stuff for later
+// const mongoose = require("mongoose");
 
-mongoose
-  .connect(databaseUrl, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => {
-    console.log("Connected to MongoDB");
-  })
-  .catch((err) => {
-    console.error("Error connecting to MongoDB:", err);
-  });
+// const databaseUrl = process.env.DATABASE_URL;
+
+// mongoose
+//   .connect(databaseUrl, { useNewUrlParser: true, useUnifiedTopology: true })
+//   .then(() => {
+//     console.log("Connected to MongoDB");
+//   })
+//   .catch((err) => {
+//     console.error("Error connecting to MongoDB:", err);
+//   });
 
 const PORT = process.env.PORT || 3000;
 
