@@ -4,7 +4,7 @@
   "description": "This project will hold the scripts needed for Render to build and run both the server and client apps",
   "main": "index.js",
   "engines": {
-    "node": "16.14.0"
+    "node": "22.14.0"
   },
   "scripts": {
     "build": "cd server && npm i && cd ../client && npm i && npm run build",
