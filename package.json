@@ -1,5 +1,5 @@
 {
-  "name": "new-capstone",
+  "name": "student-registration-app",
   "version": "1.0.0",
   "description": "This project will hold the scripts needed for Render to build and run both the server and client apps",
   "main": "index.js",
