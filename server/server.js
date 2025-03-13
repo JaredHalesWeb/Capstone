@@ -1,31 +1,49 @@
-// server/server.js
+require("dotenv").config({ path: __dirname + "/.env" });
 const path = require("path");
 const express = require("express");
+const morgan = require("morgan"); // or Winston
+const passport = require("passport");
 
-//Mongoose stuff for later
-// const mongoose = require("mongoose");
+// Connect to Database
+// (If MongoDB)
+const mongoose = require("mongoose");
+mongoose.connect(process.env.DATABASE_URL, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
 
-// const databaseUrl = process.env.DATABASE_URL;
+// Import routes
+const authRoutes = require("./routes/authRoutes");
+const userRoutes = require("./routes/userRoutes");
+const courseRoutes = require("./routes/courseRoutes");
 
-// mongoose
-//   .connect(databaseUrl, { useNewUrlParser: true, useUnifiedTopology: true })
-//   .then(() => {
-//     console.log("Connected to MongoDB");
-//   })
-//   .catch((err) => {
-//     console.error("Error connecting to MongoDB:", err);
-//   });
+// Passport config
+require("./config/passport")(passport);
 
 const PORT = process.env.PORT || 3000;
 
 const app = express();
 
-// Have Node serve the files for our built React app
+// Logging
+app.use(morgan("dev")); // For more advanced logging, consider Winston
+
+// JSON Body Parser
+app.use(express.json());
+
+// Passport middleware
+app.use(passport.initialize());
+
+// Example: All routes prefixed with /api
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/courses", courseRoutes);
+
+// Serve React/Vue app
 app.use(express.static(path.resolve(__dirname, "../client/dist")));
 
-// Handle GET requests to /api route
-app.get("/api", (req, res) => {
-  res.json({ message: "Hello from server!" });
+// Catch-all to handle SPA (client side routing)
+app.get("*", (req, res) => {
+  res.sendFile(path.resolve(__dirname, "../client/dist", "index.html"));
 });
 
 app.listen(PORT, () => {
