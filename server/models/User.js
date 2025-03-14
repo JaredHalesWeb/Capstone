@@ -10,6 +10,7 @@ const userSchema = new mongoose.Schema({
   address: { type: String },
   password: { type: String, required: true },
   role: { type: String, default: "student" }, 
+  profileImageUrl: { type: String, default: "" },
   // role can be "student" or "admin"
 });
 

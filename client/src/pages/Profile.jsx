@@ -1,11 +1,22 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
+import { useDropzone } from "react-dropzone";
 
 const Profile = () => {
   const [user, setUser] = useState(null);
-  const [registeredCourses, setRegisteredCourses] = useState([]);
+  const [editing, setEditing] = useState(false);
+  const [profileImageFile, setProfileImageFile] = useState(null);
   const token = localStorage.getItem("token");
   const localUser = JSON.parse(localStorage.getItem("user"));
+  
+  // A helper function that returns the full URL of the image
+  const getImageUrl = (imagePath) => {
+    const placeholder = "https://i.pravatar.cc/250?u=mail@ashallendesign.co.uk";
+    if (!imagePath) return placeholder;
+    if (imagePath.startsWith("http")) return imagePath;
+    console.log(`${window.location.origin}${imagePath}`)
+    return `${window.location.origin}${imagePath}`;
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -18,127 +29,229 @@ const Profile = () => {
         console.error("Error loading profile:", error);
       }
     };
-
-    const fetchCourses = async () => {
-      try {
-        const res = await axios.get(`/api/courses`, {
-          headers: { Authorization: token },
-        });
-        const filtered = res.data.filter((course) =>
-          course.studentsRegistered.some(
-            (student) => student._id === localUser.id
-          )
-        );
-        setRegisteredCourses(filtered);
-      } catch (error) {
-        console.error("Error loading courses:", error);
-      }
-    };
-
     fetchProfile();
-    fetchCourses();
   }, [token, localUser.id]);
+
+  const handleChange = (e) => {
+    setUser({ ...user, [e.target.name]: e.target.value });
+  };
+
+  const onDrop = useCallback((acceptedFiles) => {
+    console.log("Accepted files:", acceptedFiles);
+    if (acceptedFiles && acceptedFiles.length > 0) {
+      const file = acceptedFiles[0];
+      // Generate a blob URL for preview
+      file.preview = URL.createObjectURL(file);
+      setProfileImageFile(file);
+    }
+  }, []);
+   
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: "image/*",
+    multiple: false,
+  });
+  
+
+  const handleImageUpload = async () => {
+    if (!profileImageFile) return;
+    const formData = new FormData();
+    formData.append("image", profileImageFile);
+    try {
+      const res = await axios.post(`/api/upload/profile-image/${user._id}`, formData, {
+        headers: { Authorization: token },
+      });
+      setUser(res.data);
+      setProfileImageFile(null);
+    } catch (err) {
+      console.error("Image upload failed", err);
+    }
+  };
+
+  const handleImageDelete = async () => {
+    if (!window.confirm("Are you sure you want to delete your profile image?")) return;
+    try {
+      const res = await axios.delete(`/api/upload/profile-image/${user._id}`, {
+        headers: { Authorization: token },
+      });
+      setUser(res.data);
+    } catch (err) {
+      console.error("Image deletion failed", err);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      const res = await axios.put(`/api/users/${user._id}`, user, {
+        headers: { Authorization: token },
+      });
+      setUser(res.data);
+      setEditing(false);
+    } catch (err) {
+      console.error("Error saving profile:", err);
+    }
+  };
 
   return (
     <div style={styles.container}>
-      <div style={styles.profileHeader}>
-        <img 
-          src="https://via.placeholder.com/150" 
-          alt="Profile" 
-          style={styles.profileImage}
-        />
-        {user && (
-          <div style={styles.basicInfo}>
-            <h2 style={styles.name}>
-              {user.firstname} {user.lastname}
-            </h2>
-            <p style={styles.username}>@{user.username}</p>
-            <p style={styles.email}>{user.email}</p>
+      <h2>My Profile</h2>
+      {user && (
+        <div style={styles.profileCard}>
+          <img
+            src={getImageUrl(user.profileImageUrl)}
+            alt="Profile"
+            style={styles.profileImage}
+          />
+          <div style={styles.imageUploadContainer}>
+            <div {...getRootProps()} style={styles.dropzone}>
+              <input {...getInputProps()} />
+              {isDragActive ? (
+                <p>Drop the image here ...</p>
+              ) : (
+                <p>Drag & drop an image here, or click to select file</p>
+              )}
+            </div>
+            {profileImageFile && (
+              <p>Selected file: {profileImageFile.name}</p>
+            )}
+            <div>
+              <button onClick={handleImageUpload} style={styles.button}>
+                Upload Image
+              </button>
+              <button onClick={handleImageDelete} style={styles.deleteButton}>
+                Delete Profile Image
+              </button>
+            </div>
           </div>
-        )}
-      </div>
-      
-      <div style={styles.detailsSection}>
-        <h3 style={styles.sectionTitle}>Contact Information</h3>
-        {user && (
-          <div>
-            <p><strong>Telephone:</strong> {user.telephone}</p>
-            <p><strong>Address:</strong> {user.address}</p>
-          </div>
-        )}
-      </div>
-
-      <div style={styles.detailsSection}>
-        <h3 style={styles.sectionTitle}>Registered Courses</h3>
-        {registeredCourses.length > 0 ? (
-          <ul style={styles.courseList}>
-            {registeredCourses.map((course) => (
-              <li key={course._id} style={styles.courseItem}>
-                <strong>{course.title}</strong> - {course.schedule}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>You have not registered for any courses yet.</p>
-        )}
-      </div>
+          {editing ? (
+            <>
+              <input
+                name="firstname"
+                value={user.firstname}
+                onChange={handleChange}
+                style={styles.input}
+                placeholder="First Name"
+              />
+              <input
+                name="lastname"
+                value={user.lastname}
+                onChange={handleChange}
+                style={styles.input}
+                placeholder="Last Name"
+              />
+              <input
+                name="email"
+                value={user.email}
+                onChange={handleChange}
+                style={styles.input}
+                placeholder="Email"
+              />
+              <input
+                name="telephone"
+                value={user.telephone}
+                onChange={handleChange}
+                style={styles.input}
+                placeholder="Telephone"
+              />
+              <input
+                name="address"
+                value={user.address}
+                onChange={handleChange}
+                style={styles.input}
+                placeholder="Address"
+              />
+              <button onClick={handleSave} style={styles.button}>
+                Save Changes
+              </button>
+              <button onClick={() => setEditing(false)} style={styles.cancelButton}>
+                Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              <p>
+                <strong>Name:</strong> {user.firstname} {user.lastname}
+              </p>
+              <p>
+                <strong>Email:</strong> {user.email}
+              </p>
+              <p>
+                <strong>Phone:</strong> {user.telephone}
+              </p>
+              <p>
+                <strong>Address:</strong> {user.address}
+              </p>
+              <button onClick={() => setEditing(true)} style={styles.button}>
+                Edit Profile
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };
 
 const styles = {
-  container: {
-    maxWidth: "800px",
-    margin: "2rem auto",
-    padding: "1.5rem",
+  container: { maxWidth: "600px", margin: "6rem auto", padding: "1rem" },
+  profileCard: {
     backgroundColor: "#fff",
+    padding: "1.5rem",
     borderRadius: "8px",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-  },
-  profileHeader: {
-    display: "flex",
-    alignItems: "center",
-    borderBottom: "1px solid #eee",
-    paddingBottom: "1rem",
-    marginBottom: "1rem",
+    boxShadow: "0 0 10px rgba(0,0,0,0.1)",
+    textAlign: "center",
   },
   profileImage: {
     width: "150px",
     height: "150px",
     borderRadius: "50%",
+    marginBottom: "1rem",
     objectFit: "cover",
-    marginRight: "1.5rem",
   },
-  basicInfo: {
-    flex: 1,
-  },
-  name: {
-    fontSize: "2rem",
-    margin: "0",
-  },
-  username: {
-    color: "#888",
-    margin: "0.25rem 0",
-  },
-  email: {
-    color: "#555",
-    margin: "0.25rem 0",
-  },
-  detailsSection: {
+  imageUploadContainer: {
     marginBottom: "1rem",
   },
-  sectionTitle: {
-    borderBottom: "2px solid #007bff",
-    paddingBottom: "0.5rem",
-    marginBottom: "0.75rem",
+  dropzone: {
+    border: "2px dashed #007bff",
+    borderRadius: "8px",
+    padding: "1rem",
+    cursor: "pointer",
+    marginBottom: "0.5rem",
   },
-  courseList: {
-    listStyleType: "none",
-    padding: 0,
+  input: {
+    display: "block",
+    width: "100%",
+    margin: "0.5rem auto",
+    padding: "0.5rem",
+    borderRadius: "4px",
+    border: "1px solid #ccc",
   },
-  courseItem: {
-    padding: "0.5rem 0",
-    borderBottom: "1px solid #eee",
+  button: {
+    marginTop: "0.5rem",
+    backgroundColor: "#007bff",
+    color: "#fff",
+    border: "none",
+    padding: "0.5rem 1rem",
+    borderRadius: "4px",
+    cursor: "pointer",
+  },
+  cancelButton: {
+    marginLeft: "1rem",
+    backgroundColor: "#6c757d",
+    color: "#fff",
+    border: "none",
+    padding: "0.5rem 1rem",
+    borderRadius: "4px",
+    cursor: "pointer",
+  },
+  deleteButton: {
+    marginLeft: "0.5rem",
+    backgroundColor: "#dc3545",
+    color: "#fff",
+    border: "none",
+    padding: "0.5rem 1rem",
+    borderRadius: "4px",
+    cursor: "pointer",
   },
 };
 

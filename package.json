@@ -21,5 +21,8 @@
   "bugs": {
     "url": "https://github.com/ctdalton/capstoneStarter/issues"
   },
-  "homepage": "https://github.com/ctdalton/capstoneStarter#readme"
+  "homepage": "https://github.com/ctdalton/capstoneStarter#readme",
+  "dependencies": {
+    "multer": "^1.4.5-lts.1"
+  }
 }

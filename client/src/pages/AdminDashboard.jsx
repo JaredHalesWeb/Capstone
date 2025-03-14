@@ -6,10 +6,17 @@ const AdminDashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [users, setUsers] = useState([]);
   const [courses, setCourses] = useState([]);
-  const [editingUser, setEditingUser] = useState(null); // stores a user object currently being edited
-  const [editingCourse, setEditingCourse] = useState(null); // stores a course object currently being edited
-
+  const [editingUser, setEditingUser] = useState(null);
+  const [editingCourse, setEditingCourse] = useState(null);
   const token = localStorage.getItem("token");
+
+  // Helper to construct full URL for images
+  const getImageUrl = (imagePath) => {
+    const placeholder = "https://i.pravatar.cc/250?u=mail@ashallendesign.co.uk";
+    if (!imagePath) return placeholder;
+    if (imagePath.startsWith("http")) return imagePath;
+    return `${window.location.origin}${imagePath}`;
+  };
 
   useEffect(() => {
     if (activeTab === "users") {
@@ -17,7 +24,6 @@ const AdminDashboard = () => {
     } else {
       fetchCourses();
     }
-    // eslint-disable-next-line
   }, [activeTab, searchTerm]);
 
   const fetchUsers = async () => {
@@ -112,6 +118,21 @@ const AdminDashboard = () => {
     }
   };
 
+  const handlePromote = async (userId) => {
+    if (!window.confirm("Are you sure you want to promote this user to admin?")) {
+      return;
+    }
+    try {
+      const res = await axios.put(`/api/admin/promote/${userId}`, {}, {
+        headers: { Authorization: token },
+      });
+      // Update the user in state
+      setUsers(users.map(u => (u._id === res.data._id ? res.data : u)));
+    } catch (error) {
+      console.error("Error promoting user:", error);
+    }
+  };
+
   return (
     <div style={styles.container}>
       <h2 style={styles.title}>Admin Dashboard</h2>
@@ -181,11 +202,18 @@ const AdminDashboard = () => {
                 </div>
               ) : (
                 <>
-                  <div>
-                    <p>
-                      <strong>{user.username}</strong> - {user.email} ({user.role})
-                    </p>
-                    <p>{user.firstname} {user.lastname}</p>
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    <img
+                      src={getImageUrl(user.profileImageUrl)}
+                      alt="pfp"
+                      style={styles.smallProfileImage}
+                    />
+                    <div style={{ marginLeft: "0.5rem" }}>
+                      <p>
+                        <strong>{user.username}</strong> - {user.email} ({user.role})
+                      </p>
+                      <p>{user.firstname} {user.lastname}</p>
+                    </div>
                   </div>
                   <div>
                     <button onClick={() => handleUserEdit(user)} style={styles.actionButton}>
@@ -194,6 +222,11 @@ const AdminDashboard = () => {
                     <button onClick={() => handleUserDelete(user._id)} style={styles.deleteButton}>
                       Delete
                     </button>
+                    {user.role !== "admin" && (
+                      <button onClick={() => handlePromote(user._id)} style={styles.promoteButton}>
+                        Promote
+                      </button>
+                    )}
                   </div>
                 </>
               )}
@@ -300,6 +333,15 @@ const styles = {
     marginRight: "0.5rem",
     borderRadius: "4px",
   },
+  promoteButton: {
+    padding: "0.4rem 0.8rem",
+    backgroundColor: "#28a745", // green for promotion
+    color: "#fff",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
+    marginRight: "0.5rem",
+  },  
   searchContainer: {
     textAlign: "center",
     marginBottom: "1rem",
@@ -320,6 +362,12 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
+  },
+  smallProfileImage: {
+    width: "40px",
+    height: "40px",
+    borderRadius: "50%",
+    objectFit: "cover",
   },
   actionButton: {
     padding: "0.4rem 0.8rem",

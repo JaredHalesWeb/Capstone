@@ -16,6 +16,8 @@ mongoose.connect(process.env.DATABASE_URL, {
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const courseRoutes = require("./routes/courseRoutes");
+const uploadRoutes = require("./routes/upload");
+const adminRoutes = require("./routes/admin");
 
 // Passport config
 require("./config/passport")(passport);
@@ -37,6 +39,10 @@ app.use(passport.initialize());
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/courses", courseRoutes);
+app.use("/api/upload", uploadRoutes);
+app.use("/api/admin", adminRoutes);
+
+app.use("/uploads", express.static(path.join(__dirname, "./uploads")));
 
 // Serve React/Vue app
 app.use(express.static(path.resolve(__dirname, "../client/dist")));
