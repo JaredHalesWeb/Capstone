@@ -24,7 +24,6 @@ const Profile = () => {
         const res = await axios.get(`/api/courses`, {
           headers: { Authorization: token },
         });
-        // Filter only the courses the user is registered in
         const filtered = res.data.filter((course) =>
           course.studentsRegistered.some(
             (student) => student._id === localUser.id
@@ -42,56 +41,102 @@ const Profile = () => {
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.title}>Student Profile</h2>
-      {user && (
-        <div style={styles.infoBox}>
-          <p><strong>Username:</strong> {user.username}</p>
-          <p><strong>Name:</strong> {user.firstname} {user.lastname}</p>
-          <p><strong>Email:</strong> {user.email}</p>
-          <p><strong>Phone:</strong> {user.telephone}</p>
-          <p><strong>Address:</strong> {user.address}</p>
-          <p><strong>Role:</strong> {user.role}</p>
-        </div>
-      )}
-      <h3 style={styles.subtitle}>Registered Courses</h3>
-      <ul style={styles.list}>
-        {registeredCourses.map((course) => (
-          <li key={course._id} style={styles.listItem}>
-            {course.title}
-          </li>
-        ))}
-      </ul>
+      <div style={styles.profileHeader}>
+        <img 
+          src="https://via.placeholder.com/150" 
+          alt="Profile" 
+          style={styles.profileImage}
+        />
+        {user && (
+          <div style={styles.basicInfo}>
+            <h2 style={styles.name}>
+              {user.firstname} {user.lastname}
+            </h2>
+            <p style={styles.username}>@{user.username}</p>
+            <p style={styles.email}>{user.email}</p>
+          </div>
+        )}
+      </div>
+      
+      <div style={styles.detailsSection}>
+        <h3 style={styles.sectionTitle}>Contact Information</h3>
+        {user && (
+          <div>
+            <p><strong>Telephone:</strong> {user.telephone}</p>
+            <p><strong>Address:</strong> {user.address}</p>
+          </div>
+        )}
+      </div>
+
+      <div style={styles.detailsSection}>
+        <h3 style={styles.sectionTitle}>Registered Courses</h3>
+        {registeredCourses.length > 0 ? (
+          <ul style={styles.courseList}>
+            {registeredCourses.map((course) => (
+              <li key={course._id} style={styles.courseItem}>
+                <strong>{course.title}</strong> - {course.schedule}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>You have not registered for any courses yet.</p>
+        )}
+      </div>
     </div>
   );
 };
 
 const styles = {
   container: {
-    maxWidth: "600px",
+    maxWidth: "800px",
     margin: "2rem auto",
-    padding: "1rem",
+    padding: "1.5rem",
     backgroundColor: "#fff",
     borderRadius: "8px",
     boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
   },
-  title: {
-    textAlign: "center",
+  profileHeader: {
+    display: "flex",
+    alignItems: "center",
+    borderBottom: "1px solid #eee",
+    paddingBottom: "1rem",
     marginBottom: "1rem",
+  },
+  profileImage: {
+    width: "150px",
+    height: "150px",
+    borderRadius: "50%",
+    objectFit: "cover",
+    marginRight: "1.5rem",
+  },
+  basicInfo: {
+    flex: 1,
+  },
+  name: {
     fontSize: "2rem",
+    margin: "0",
   },
-  infoBox: {
+  username: {
+    color: "#888",
+    margin: "0.25rem 0",
+  },
+  email: {
+    color: "#555",
+    margin: "0.25rem 0",
+  },
+  detailsSection: {
     marginBottom: "1rem",
-    lineHeight: "1.6",
   },
-  subtitle: {
-    fontSize: "1.5rem",
-    marginBottom: "0.5rem",
+  sectionTitle: {
+    borderBottom: "2px solid #007bff",
+    paddingBottom: "0.5rem",
+    marginBottom: "0.75rem",
   },
-  list: {
+  courseList: {
     listStyleType: "none",
     padding: 0,
   },
-  listItem: {
+  courseItem: {
     padding: "0.5rem 0",
     borderBottom: "1px solid #eee",
   },

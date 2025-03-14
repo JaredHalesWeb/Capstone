@@ -33,6 +33,7 @@ body {
   min-width: 320px;
   background-color: #f4f4f4;
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  padding-top: 80px; /* Adjust this value based on your nav bar's height */
 }
 
 h1 {

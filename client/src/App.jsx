@@ -1,21 +1,21 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
 import Courses from "./pages/Courses";
 import AdminDashboard from "./pages/AdminDashboard";
-import ProtectedRoute from "./components/ProtectedRoute"; // a higher-order component for route guarding
+import ProtectedRoute from "./components/ProtectedRoute";
+import NavBar from "./components/NavBar";
 
 const App = () => {
   return (
     <Router>
+      <NavBar />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Protected routes */}
         <Route
           path="/profile"
           element={
@@ -24,6 +24,7 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/courses"
           element={
@@ -32,6 +33,7 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/admin"
           element={
@@ -41,8 +43,7 @@ const App = () => {
           }
         />
 
-        {/* fallback */}
-        <Route path="*" element={<Login />} />
+        <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     </Router>
   );
