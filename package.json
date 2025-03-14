@@ -8,7 +8,8 @@
   },
   "scripts": {
     "build": "cd server && npm i && cd ../client && npm i && npm run build",
-    "start": "node server/server.js"
+    "start": "node server/server.js",
+    "reseed": "cd server && node clearCourses.js && node seedCourses.js"
   },
   "keywords": [],
   "author": "",
