@@ -80,6 +80,7 @@ const styles = {
     borderRadius: "12px",
     boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
     width: "100%",
+    minwidth: "250px",
     maxWidth: "500px",
   },
   title: {

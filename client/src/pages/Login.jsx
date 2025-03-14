@@ -68,7 +68,7 @@ const styles = {
   },
   cardWrapper: {
     width: "100%",
-    maxWidth: "400px",
+    minWidth: "400px",
     backgroundColor: "#fff",
     padding: "2rem",
     borderRadius: "12px",
