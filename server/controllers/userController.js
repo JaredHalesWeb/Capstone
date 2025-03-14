@@ -2,13 +2,19 @@ const User = require("../models/User");
 
 // GET /api/users
 exports.getAllUsers = async (req, res) => {
+  const search = req.query.search || "";
   try {
-    // Check if admin
     if (req.user.role !== "admin") {
       return res.status(403).json({ error: "Forbidden" });
     }
-
-    const users = await User.find();
+    const users = await User.find({
+      $or: [
+        { username: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { firstname: { $regex: search, $options: "i" } },
+        { lastname: { $regex: search, $options: "i" } }
+      ]
+    });
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: "Server error" });

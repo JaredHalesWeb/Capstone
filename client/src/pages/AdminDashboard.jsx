@@ -8,6 +8,8 @@ const AdminDashboard = () => {
   const [courses, setCourses] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
   const [editingCourse, setEditingCourse] = useState(null);
+  const [selectedCourseForEnrollment, setSelectedCourseForEnrollment] = useState(null);
+  const [newStudentId, setNewStudentId] = useState("");
   const token = localStorage.getItem("token");
 
   // Helper to construct full URL for images
@@ -24,6 +26,8 @@ const AdminDashboard = () => {
     } else {
       fetchCourses();
     }
+    // Clear any enrollment selection when switching tabs
+    setSelectedCourseForEnrollment(null);
   }, [activeTab, searchTerm]);
 
   const fetchUsers = async () => {
@@ -48,7 +52,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // --- User Editing Handlers ---
+  // --- User Handlers (unchanged) ---
   const handleUserEdit = (user) => {
     setEditingUser(user);
   };
@@ -83,7 +87,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // --- Course Editing Handlers ---
+  // --- Course Handlers (unchanged for editing/deleting courses) ---
   const handleCourseEdit = (course) => {
     setEditingCourse(course);
   };
@@ -118,18 +122,57 @@ const AdminDashboard = () => {
     }
   };
 
-  const handlePromote = async (userId) => {
-    if (!window.confirm("Are you sure you want to promote this user to admin?")) {
+  // --- Enrollment Handlers ---
+  const handleOpenEnrollment = (course) => {
+    setSelectedCourseForEnrollment(course);
+  };
+
+  const handleCloseEnrollment = () => {
+    setSelectedCourseForEnrollment(null);
+    setNewStudentId("");
+  };
+
+  const handleRemoveStudent = async (courseId, studentId) => {
+    if (!window.confirm("Are you sure you want to remove this student from the course?")) {
       return;
     }
     try {
-      const res = await axios.put(`/api/admin/promote/${userId}`, {}, {
+      // Admin can unregister a student by passing userId in body
+      await axios.post(`/api/courses/${courseId}/unregister`, { userId: studentId }, {
         headers: { Authorization: token },
       });
-      // Update the user in state
-      setUsers(users.map(u => (u._id === res.data._id ? res.data : u)));
+      // Refresh courses after removal
+      fetchCourses();
+      // Also update selectedCourseForEnrollment if open
+      if (selectedCourseForEnrollment && selectedCourseForEnrollment._id === courseId) {
+        const updatedCourse = {
+          ...selectedCourseForEnrollment,
+          studentsRegistered: selectedCourseForEnrollment.studentsRegistered.filter(s => s._id !== studentId)
+        };
+        setSelectedCourseForEnrollment(updatedCourse);
+      }
     } catch (error) {
-      console.error("Error promoting user:", error);
+      console.error("Error removing student:", error);
+    }
+  };
+
+  const handleAddStudent = async (courseId) => {
+    if (!newStudentId) return;
+    try {
+      // Admin can register a student by passing userId in the request body
+      await axios.post(`/api/courses/${courseId}/register`, { userId: newStudentId }, {
+        headers: { Authorization: token },
+      });
+      // Refresh courses after addition
+      fetchCourses();
+      // Also update selectedCourseForEnrollment if open
+      const course = courses.find(c => c._id === courseId);
+      if (course) {
+        setSelectedCourseForEnrollment(course);
+      }
+      setNewStudentId("");
+    } catch (error) {
+      console.error("Error adding student:", error);
     }
   };
 
@@ -286,17 +329,63 @@ const AdminDashboard = () => {
                     <button onClick={() => handleCourseDelete(course._id)} style={styles.deleteButton}>
                       Delete
                     </button>
+                    <button onClick={() => handleOpenEnrollment(course)} style={styles.enrollmentButton}>
+                      Manage Enrollment
+                    </button>
                   </div>
                 </>
               )}
             </div>
           ))}
+          
+          {/* Enrollment Management Panel */}
+          {selectedCourseForEnrollment && (
+            <div style={styles.enrollmentPanel}>
+              <h3>Manage Enrollment for {selectedCourseForEnrollment.title}</h3>
+              <div>
+                <p><strong>Enrolled Students:</strong></p>
+                <ul style={styles.enrollmentList}>
+                  {selectedCourseForEnrollment.studentsRegistered && selectedCourseForEnrollment.studentsRegistered.length > 0 ? (
+                    selectedCourseForEnrollment.studentsRegistered.map((student) => (
+                      <li key={student._id} style={styles.enrollmentListItem}>
+                        <span>{student.username}</span>
+                        <button
+                          onClick={() => handleRemoveStudent(selectedCourseForEnrollment._id, student._id)}
+                          style={styles.deleteButton}
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))
+                  ) : (
+                    <li>No students enrolled.</li>
+                  )}
+                </ul>
+              </div>
+              <div style={styles.addStudentContainer}>
+                <input
+                  type="text"
+                  placeholder="Enter student ID"
+                  value={newStudentId}
+                  onChange={(e) => setNewStudentId(e.target.value)}
+                  style={styles.searchInput}
+                />
+                <button onClick={() => handleAddStudent(selectedCourseForEnrollment._id)} style={styles.actionButton}>
+                  Add Student
+                </button>
+              </div>
+              <button onClick={handleCloseEnrollment} style={styles.cancelButton}>
+                Close Enrollment
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 };
 
+// Additional styles for enrollment management
 const styles = {
   container: {
     maxWidth: "800px",
@@ -306,16 +395,8 @@ const styles = {
     borderRadius: "8px",
     boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
   },
-  title: {
-    textAlign: "center",
-    marginBottom: "1rem",
-    fontSize: "2rem",
-  },
-  tabContainer: {
-    display: "flex",
-    justifyContent: "center",
-    marginBottom: "1rem",
-  },
+  title: { textAlign: "center", marginBottom: "1rem", fontSize: "2rem" },
+  tabContainer: { display: "flex", justifyContent: "center", marginBottom: "1rem" },
   tab: {
     padding: "0.5rem 1rem",
     cursor: "pointer",
@@ -333,19 +414,7 @@ const styles = {
     marginRight: "0.5rem",
     borderRadius: "4px",
   },
-  promoteButton: {
-    padding: "0.4rem 0.8rem",
-    backgroundColor: "#28a745", // green for promotion
-    color: "#fff",
-    border: "none",
-    borderRadius: "4px",
-    cursor: "pointer",
-    marginRight: "0.5rem",
-  },  
-  searchContainer: {
-    textAlign: "center",
-    marginBottom: "1rem",
-  },
+  searchContainer: { textAlign: "center", marginBottom: "1rem" },
   searchInput: {
     padding: "0.5rem",
     width: "80%",
@@ -353,9 +422,7 @@ const styles = {
     borderRadius: "4px",
     border: "1px solid #ccc",
   },
-  listContainer: {
-    marginTop: "1rem",
-  },
+  listContainer: { marginTop: "1rem" },
   listItem: {
     padding: "1rem",
     borderBottom: "1px solid #eee",
@@ -395,6 +462,15 @@ const styles = {
     borderRadius: "4px",
     cursor: "pointer",
   },
+  promoteButton: {
+    padding: "0.4rem 0.8rem",
+    backgroundColor: "#28a745",
+    color: "#fff",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
+    marginRight: "0.5rem",
+  },
   editForm: {
     display: "flex",
     flexDirection: "column",
@@ -406,6 +482,35 @@ const styles = {
     border: "1px solid #ccc",
     borderRadius: "4px",
     fontSize: "0.9rem",
+  },
+  enrollmentButton: {
+    padding: "0.4rem 0.8rem",
+    backgroundColor: "#ffc107", // yellow-ish
+    color: "#000",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
+  },
+  enrollmentPanel: {
+    marginTop: "2rem",
+    padding: "1rem",
+    border: "1px solid #ccc",
+    borderRadius: "8px",
+    backgroundColor: "#f1f1f1",
+  },
+  enrollmentList: { listStyle: "none", padding: 0 },
+  enrollmentListItem: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "0.5rem 0",
+    borderBottom: "1px solid #ddd",
+  },
+  addStudentContainer: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem",
+    marginTop: "1rem",
   },
 };
 
