@@ -3,18 +3,20 @@ import axios from "axios";
 
 const Courses = () => {
   const [courses, setCourses] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const token = localStorage.getItem("token");
   const localUser = JSON.parse(localStorage.getItem("user"));
 
   useEffect(() => {
     fetchCourses();
-  }, []);
+  }, [searchTerm]);
 
   const fetchCourses = async () => {
     try {
-      const res = await axios.get("/api/courses", {
-        headers: { Authorization: token },
-      });
+      const res = await axios.get(
+        `/api/courses?search=${searchTerm}&t=${Date.now()}`,
+        { headers: { Authorization: token } }
+      );
       setCourses(res.data);
     } catch (error) {
       console.error("Error loading courses:", error);
@@ -23,9 +25,11 @@ const Courses = () => {
 
   const handleRegister = async (courseId) => {
     try {
-      await axios.post(`/api/courses/${courseId}/register`, {}, {
-        headers: { Authorization: token },
-      });
+      await axios.post(
+        `/api/courses/${courseId}/register`,
+        {},
+        { headers: { Authorization: token } }
+      );
       fetchCourses();
     } catch (error) {
       alert("Registration failed: " + error.response.data.error);
@@ -34,9 +38,11 @@ const Courses = () => {
 
   const handleUnregister = async (courseId) => {
     try {
-      await axios.post(`/api/courses/${courseId}/unregister`, {}, {
-        headers: { Authorization: token },
-      });
+      await axios.post(
+        `/api/courses/${courseId}/unregister`,
+        {},
+        { headers: { Authorization: token } }
+      );
       fetchCourses();
     } catch (error) {
       alert("Unregistration failed: " + error.response.data.error);
@@ -46,6 +52,15 @@ const Courses = () => {
   return (
     <div style={styles.container}>
       <h2 style={styles.title}>Available Courses</h2>
+      <div style={styles.searchContainer}>
+        <input
+          type="text"
+          placeholder="Search courses..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={styles.searchInput}
+        />
+      </div>
       <ul style={styles.list}>
         {courses.map((course) => {
           const isRegistered = course.studentsRegistered.some(
@@ -56,6 +71,9 @@ const Courses = () => {
               <div style={styles.courseInfo}>
                 <strong>{course.title}</strong>
                 <p>{course.description || "No description"}</p>
+                <p>
+                  Schedule: {course.schedule || "No schedule available"}
+                </p>
                 <p>
                   Capacity: {course.studentsRegistered.length} / {course.capacity}
                 </p>
@@ -98,6 +116,17 @@ const styles = {
     textAlign: "center",
     marginBottom: "1rem",
     fontSize: "2rem",
+  },
+  searchContainer: {
+    textAlign: "center",
+    marginBottom: "1rem",
+  },
+  searchInput: {
+    padding: "0.5rem",
+    width: "80%",
+    maxWidth: "400px",
+    borderRadius: "4px",
+    border: "1px solid #ccc",
   },
   list: {
     listStyleType: "none",

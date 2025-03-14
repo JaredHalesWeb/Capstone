@@ -16,6 +16,9 @@ router.put("/:id", passport.authenticate("jwt", { session: false }), courseContr
 // DELETE /api/courses/:id - Admin only: Delete course
 router.delete("/:id", passport.authenticate("jwt", { session: false }), courseController.deleteCourse);
 
+router.post("/:id/register", passport.authenticate("jwt", { session: false }), courseController.registerForCourse);
+router.post("/:id/unregister", passport.authenticate("jwt", { session: false }), courseController.unregisterFromCourse);
+
 // -----------------------------
 // Register a user to a course
 // -----------------------------
