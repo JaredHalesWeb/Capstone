@@ -24,13 +24,20 @@ exports.getAllUsers = async (req, res) => {
 // GET /api/users/:id
 exports.getUserById = async (req, res) => {
   try {
-    // Admin or user themself
     if (req.user.role !== "admin" && req.user._id.toString() !== req.params.id) {
       return res.status(403).json({ error: "Forbidden" });
     }
 
-    const user = await User.findById(req.params.id);
-    res.json(user);
+    const user = await User.findById(req.params.id).lean();
+    if (user.profileImage && user.profileImage.data) {
+      // If profileImage.data is an object with a "data" property (which is an array), then convert that:
+      if (user.profileImage.data.data) {
+        user.profileImage.data = Buffer.from(user.profileImage.data.data).toString("base64");
+      } else if (Array.isArray(user.profileImage.data)) {
+        user.profileImage.data = Buffer.from(user.profileImage.data).toString("base64");
+      }
+    }
+    res.json(user)
   } catch (error) {
     res.status(500).json({ error: "Server error" });
   }

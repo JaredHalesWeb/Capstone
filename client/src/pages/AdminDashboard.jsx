@@ -12,12 +12,41 @@ const AdminDashboard = () => {
   const [newStudentId, setNewStudentId] = useState("");
   const token = localStorage.getItem("token");
 
-  // Helper to construct full URL for images
-  const getImageUrl = (imagePath) => {
+  // Helper function to convert image data (an array) to a base64 string
+  const convertImageDataToBase64 = (data) => {
+    if (typeof data === "string") return data; // already a string
+    if (Array.isArray(data)) {
+      const binaryString = data.map((byte) => String.fromCharCode(byte)).join("");
+      return btoa(binaryString);
+    }
+    if (typeof data === "object" && data.data && Array.isArray(data.data)) {
+      const binaryString = data.data.map((byte) => String.fromCharCode(byte)).join("");
+      return btoa(binaryString);
+    }
+    return "";
+  };
+
+  const getImageUrl = (user) => {
     const placeholder = "https://i.pravatar.cc/250?u=mail@ashallendesign.co.uk";
-    if (!imagePath) return placeholder;
-    if (imagePath.startsWith("http")) return imagePath;
-    return `${window.location.origin}${imagePath}`;
+    if (user && user.profileImage && user.profileImage.data) {
+      const base64String = convertImageDataToBase64(user.profileImage.data);
+      if (base64String) {
+        return `data:${user.profileImage.contentType};base64,${base64String}`;
+      }
+    }
+    return placeholder;
+  };
+
+  const handleRemoveProfileImage = async (userId) => {
+    if (!window.confirm("Are you sure you want to remove this user's profile image?")) return;
+    try {
+      const res = await axios.delete(`/api/upload/profile-image/${userId}`, {
+        headers: { Authorization: token },
+      });
+      setUsers(users.map(u => (u._id === res.data._id ? res.data : u)));
+    } catch (error) {
+      console.error("Error removing profile image:", error);
+    }
   };
 
   useEffect(() => {
@@ -137,7 +166,6 @@ const AdminDashboard = () => {
       return;
     }
     try {
-      // Admin unregisters a student by passing userId in body
       await axios.post(`/api/courses/${courseId}/unregister`, { userId: studentId }, {
         headers: { Authorization: token },
       });
@@ -157,7 +185,6 @@ const AdminDashboard = () => {
   const handleAddStudent = async (courseId) => {
     if (!newStudentId) return;
     try {
-      // Admin registers a student by passing userId in the request body
       await axios.post(`/api/courses/${courseId}/register`, { userId: newStudentId }, {
         headers: { Authorization: token },
       });
@@ -172,7 +199,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // --- Promotion Handler (if needed) ---
+  // --- Promotion Handler ---
   const handlePromote = async (userId) => {
     if (!window.confirm("Are you sure you want to promote this user to admin?")) return;
     try {
@@ -186,214 +213,245 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.title}>Admin Dashboard</h2>
-      
-      {/* Tabs */}
-      <div style={styles.tabContainer}>
-        <button
-          style={activeTab === "users" ? styles.activeTab : styles.tab}
-          onClick={() => { setActiveTab("users"); setSearchTerm(""); }}
-        >
-          Users
-        </button>
-        <button
-          style={activeTab === "courses" ? styles.activeTab : styles.tab}
-          onClick={() => { setActiveTab("courses"); setSearchTerm(""); }}
-        >
-          Courses
-        </button>
-      </div>
-      
-      {/* Search */}
-      <div style={styles.searchContainer}>
-        <input
-          type="text"
-          placeholder="Search..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={styles.searchInput}
-        />
-      </div>
-      
-      {/* List Display */}
-      {activeTab === "users" ? (
-        <div style={styles.listContainer}>
-          {users.map((user) => (
-            <div key={user._id} style={styles.listItem}>
-              {editingUser && editingUser._id === user._id ? (
-                <div style={styles.editForm}>
-                  <input 
-                    type="text" 
-                    value={editingUser.username} 
-                    onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })}
-                    style={styles.inputField}
-                  />
-                  <input 
-                    type="email" 
-                    value={editingUser.email} 
-                    onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
-                    style={styles.inputField}
-                  />
-                  <input 
-                    type="text" 
-                    value={editingUser.firstname} 
-                    onChange={(e) => setEditingUser({ ...editingUser, firstname: e.target.value })}
-                    style={styles.inputField}
-                  />
-                  <input 
-                    type="text" 
-                    value={editingUser.lastname} 
-                    onChange={(e) => setEditingUser({ ...editingUser, lastname: e.target.value })}
-                    style={styles.inputField}
-                  />
-                  <div>
-                    <button onClick={handleUserSave} style={styles.actionButton}>Save</button>
-                    <button onClick={handleUserCancel} style={styles.cancelButton}>Cancel</button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div style={{ display: "flex", alignItems: "center" }}>
-                    <img
-                      src={getImageUrl(user.profileImageUrl)}
-                      alt="pfp"
-                      style={styles.smallProfileImage}
+    <>
+      <style>{`
+        .smallProfileImage {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          object-fit: cover;
+          cursor: pointer;
+          transition: transform 0.2s ease-in-out;
+        }
+
+        .smallProfileImage:hover {
+          transform: scale(2); /* Increased the scale factor */
+        }
+
+        .removeText {
+          font-size: 0.65rem;    /* Smaller text */
+          color: #888;
+          margin-top: 0.1rem;
+          text-align: center;
+          display: block;        /* Ensure it's block-level */
+          width: 40px;           /* Match the image width */
+          margin: 0.1rem auto 0;  /* Center it under the image */
+        }
+      `}</style>
+      <div style={styles.container}>
+        <h2 style={styles.title}>Admin Dashboard</h2>
+        
+        {/* Tabs */}
+        <div style={styles.tabContainer}>
+          <button
+            style={activeTab === "users" ? styles.activeTab : styles.tab}
+            onClick={() => { setActiveTab("users"); setSearchTerm(""); }}
+          >
+            Users
+          </button>
+          <button
+            style={activeTab === "courses" ? styles.activeTab : styles.tab}
+            onClick={() => { setActiveTab("courses"); setSearchTerm(""); }}
+          >
+            Courses
+          </button>
+        </div>
+        
+        {/* Search */}
+        <div style={styles.searchContainer}>
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={styles.searchInput}
+          />
+        </div>
+        
+        {/* List Display */}
+        {activeTab === "users" ? (
+          <div style={styles.listContainer}>
+            {users.map((user) => (
+              <div key={user._id} style={styles.listItem}>
+                {editingUser && editingUser._id === user._id ? (
+                  <div style={styles.editForm}>
+                    <input 
+                      type="text" 
+                      value={editingUser.username} 
+                      onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })}
+                      style={styles.inputField}
                     />
-                    <div style={{ marginLeft: "0.5rem" }}>
-                      <p>
-                        <strong>{user.username}</strong> - {user.email} ({user.role})
-                      </p>
-                      <p>{user.firstname} {user.lastname}</p>
-                      <p style={{ fontSize: "0.8rem", color: "#555" }}>ID: {user._id}</p>
+                    <input 
+                      type="email" 
+                      value={editingUser.email} 
+                      onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
+                      style={styles.inputField}
+                    />
+                    <input 
+                      type="text" 
+                      value={editingUser.firstname} 
+                      onChange={(e) => setEditingUser({ ...editingUser, firstname: e.target.value })}
+                      style={styles.inputField}
+                    />
+                    <input 
+                      type="text" 
+                      value={editingUser.lastname} 
+                      onChange={(e) => setEditingUser({ ...editingUser, lastname: e.target.value })}
+                      style={styles.inputField}
+                    />
+                    <div>
+                      <button onClick={handleUserSave} style={styles.actionButton}>Save</button>
+                      <button onClick={handleUserCancel} style={styles.cancelButton}>Cancel</button>
                     </div>
                   </div>
-                  <div>
-                    <button onClick={() => handleUserEdit(user)} style={styles.actionButton}>
-                      Edit
-                    </button>
-                    <button onClick={() => handleUserDelete(user._id)} style={styles.deleteButton}>
-                      Delete
-                    </button>
-                    {user.role !== "admin" && (
-                      <button onClick={() => handlePromote(user._id)} style={styles.promoteButton}>
-                        Promote
+                ) : (
+                  <>
+                    <div style={{ display: "flex", alignItems: "center" }}>
+                      <div>
+                        <img
+                          src={getImageUrl(user)}
+                          alt="pfp"
+                          className="smallProfileImage"
+                          onClick={() => handleRemoveProfileImage(user._id)}
+                          title="Click to remove profile image"
+                        />
+                        <p className="removeText">Click pfp to remove</p>
+                      </div>
+                      <div style={{ marginLeft: "0.5rem" }}>
+                        <p>
+                          <strong>{user.username}</strong> - {user.email} ({user.role})
+                        </p>
+                        <p>{user.firstname} {user.lastname}</p>
+                        <p style={{ fontSize: "0.8rem", color: "#555" }}>ID: {user._id}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <button onClick={() => handleUserEdit(user)} style={styles.actionButton}>
+                        Edit
                       </button>
-                    )}
+                      <button onClick={() => handleUserDelete(user._id)} style={styles.deleteButton}>
+                        Delete
+                      </button>
+                      {user.role !== "admin" && (
+                        <button onClick={() => handlePromote(user._id)} style={styles.promoteButton}>
+                          Promote
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={styles.listContainer}>
+            {courses.map((course) => (
+              <div key={course._id} style={styles.listItem}>
+                {editingCourse && editingCourse._id === course._id ? (
+                  <div style={styles.editForm}>
+                    <input 
+                      type="text" 
+                      value={editingCourse.title} 
+                      onChange={(e) => setEditingCourse({ ...editingCourse, title: e.target.value })}
+                      style={styles.inputField}
+                    />
+                    <input 
+                      type="text" 
+                      value={editingCourse.description} 
+                      onChange={(e) => setEditingCourse({ ...editingCourse, description: e.target.value })}
+                      style={styles.inputField}
+                    />
+                    <input 
+                      type="text" 
+                      value={editingCourse.schedule} 
+                      onChange={(e) => setEditingCourse({ ...editingCourse, schedule: e.target.value })}
+                      style={styles.inputField}
+                    />
+                    <input 
+                      type="number" 
+                      value={editingCourse.capacity} 
+                      onChange={(e) => setEditingCourse({ ...editingCourse, capacity: Number(e.target.value) })}
+                      style={styles.inputField}
+                    />
+                    <div>
+                      <button onClick={handleCourseSave} style={styles.actionButton}>Save</button>
+                      <button onClick={handleCourseCancel} style={styles.cancelButton}>Cancel</button>
+                    </div>
                   </div>
-                </>
-              )}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div style={styles.listContainer}>
-          {courses.map((course) => (
-            <div key={course._id} style={styles.listItem}>
-              {editingCourse && editingCourse._id === course._id ? (
-                <div style={styles.editForm}>
-                  <input 
-                    type="text" 
-                    value={editingCourse.title} 
-                    onChange={(e) => setEditingCourse({ ...editingCourse, title: e.target.value })}
-                    style={styles.inputField}
-                  />
-                  <input 
-                    type="text" 
-                    value={editingCourse.description} 
-                    onChange={(e) => setEditingCourse({ ...editingCourse, description: e.target.value })}
-                    style={styles.inputField}
-                  />
-                  <input 
-                    type="text" 
-                    value={editingCourse.schedule} 
-                    onChange={(e) => setEditingCourse({ ...editingCourse, schedule: e.target.value })}
-                    style={styles.inputField}
-                  />
-                  <input 
-                    type="number" 
-                    value={editingCourse.capacity} 
-                    onChange={(e) => setEditingCourse({ ...editingCourse, capacity: Number(e.target.value) })}
-                    style={styles.inputField}
-                  />
+                ) : (
+                  <>
+                    <div>
+                      <p>
+                        <strong>{course.title}</strong>
+                      </p>
+                      <p>{course.description}</p>
+                      <p>
+                        Schedule: {course.schedule} | Capacity: {course.studentsRegistered?.length || 0}/{course.capacity}
+                      </p>
+                    </div>
+                    <div>
+                      <button onClick={() => handleCourseEdit(course)} style={styles.actionButton}>
+                        Edit
+                      </button>
+                      <button onClick={() => handleCourseDelete(course._id)} style={styles.deleteButton}>
+                        Delete
+                      </button>
+                      <button onClick={() => handleOpenEnrollment(course)} style={styles.enrollmentButton}>
+                        Manage Enrollment
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+            
+            {/* Modal Overlay for Enrollment Management */}
+            {selectedCourseForEnrollment && (
+              <div style={modalStyles.overlay}>
+                <div style={modalStyles.modal}>
+                  <h3>Manage Enrollment for {selectedCourseForEnrollment.title}</h3>
                   <div>
-                    <button onClick={handleCourseSave} style={styles.actionButton}>Save</button>
-                    <button onClick={handleCourseCancel} style={styles.cancelButton}>Cancel</button>
+                    <p><strong>Enrolled Students:</strong></p>
+                    <ul style={styles.enrollmentList}>
+                      {selectedCourseForEnrollment.studentsRegistered && selectedCourseForEnrollment.studentsRegistered.length > 0 ? (
+                        selectedCourseForEnrollment.studentsRegistered.map((student) => (
+                          <li key={student._id} style={styles.enrollmentListItem}>
+                            <span>{student.username}</span>
+                            <button
+                              onClick={() => handleRemoveStudent(selectedCourseForEnrollment._id, student._id)}
+                              style={styles.deleteButton}
+                            >
+                              Remove
+                            </button>
+                          </li>
+                        ))
+                      ) : (
+                        <li>No students enrolled.</li>
+                      )}
+                    </ul>
                   </div>
-                </div>
-              ) : (
-                <>
-                  <div>
-                    <p>
-                      <strong>{course.title}</strong>
-                    </p>
-                    <p>{course.description}</p>
-                    <p>
-                      Schedule: {course.schedule} | Capacity: {course.studentsRegistered?.length || 0}/{course.capacity}
-                    </p>
-                  </div>
-                  <div>
-                    <button onClick={() => handleCourseEdit(course)} style={styles.actionButton}>
-                      Edit
-                    </button>
-                    <button onClick={() => handleCourseDelete(course._id)} style={styles.deleteButton}>
-                      Delete
-                    </button>
-                    <button onClick={() => handleOpenEnrollment(course)} style={styles.enrollmentButton}>
-                      Manage Enrollment
+                  <div style={styles.addStudentContainer}>
+                    <input
+                      type="text"
+                      placeholder="Enter student ID"
+                      value={newStudentId}
+                      onChange={(e) => setNewStudentId(e.target.value)}
+                      style={styles.searchInput}
+                    />
+                    <button onClick={() => handleAddStudent(selectedCourseForEnrollment._id)} style={styles.actionButton}>
+                      Add Student
                     </button>
                   </div>
-                </>
-              )}
-            </div>
-          ))}
-          
-          {/* Modal Overlay for Enrollment Management */}
-          {selectedCourseForEnrollment && (
-            <div style={modalStyles.overlay}>
-              <div style={modalStyles.modal}>
-                <h3>Manage Enrollment for {selectedCourseForEnrollment.title}</h3>
-                <div>
-                  <p><strong>Enrolled Students:</strong></p>
-                  <ul style={styles.enrollmentList}>
-                    {selectedCourseForEnrollment.studentsRegistered && selectedCourseForEnrollment.studentsRegistered.length > 0 ? (
-                      selectedCourseForEnrollment.studentsRegistered.map((student) => (
-                        <li key={student._id} style={styles.enrollmentListItem}>
-                          <span>{student.username}</span>
-                          <button
-                            onClick={() => handleRemoveStudent(selectedCourseForEnrollment._id, student._id)}
-                            style={styles.deleteButton}
-                          >
-                            Remove
-                          </button>
-                        </li>
-                      ))
-                    ) : (
-                      <li>No students enrolled.</li>
-                    )}
-                  </ul>
-                </div>
-                <div style={styles.addStudentContainer}>
-                  <input
-                    type="text"
-                    placeholder="Enter student ID"
-                    value={newStudentId}
-                    onChange={(e) => setNewStudentId(e.target.value)}
-                    style={styles.searchInput}
-                  />
-                  <button onClick={() => handleAddStudent(selectedCourseForEnrollment._id)} style={styles.actionButton}>
-                    Add Student
+                  <button onClick={handleCloseEnrollment} style={styles.cancelButton}>
+                    Close Enrollment
                   </button>
                 </div>
-                <button onClick={handleCloseEnrollment} style={styles.cancelButton}>
-                  Close Enrollment
-                </button>
               </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+            )}
+          </div>
+        )}
+      </div>
+    </>
   );
 };
 
@@ -447,6 +505,7 @@ const styles = {
     height: "40px",
     borderRadius: "50%",
     objectFit: "cover",
+    cursor: "pointer",
   },
   actionButton: {
     padding: "0.4rem 0.8rem",

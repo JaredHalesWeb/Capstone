@@ -10,11 +10,12 @@ const userSchema = new mongoose.Schema({
   address: { type: String },
   password: { type: String, required: true },
   role: { type: String, default: "student" }, 
-  profileImageUrl: { type: String, default: "" },
-  // role can be "student" or "admin"
+  profileImage: {
+    data: Buffer,
+    contentType: String,
+  },
 });
 
-// Password hashing middleware
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
   try {
@@ -26,7 +27,6 @@ userSchema.pre("save", async function (next) {
   }
 });
 
-// Compare password method
 userSchema.methods.comparePassword = async function (plainPassword) {
   return bcrypt.compare(plainPassword, this.password);
 };
